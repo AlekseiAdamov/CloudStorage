@@ -87,7 +87,50 @@ public class Client extends JFrame {
     }
 
     private void getFile(String fileName) {
-        // TODO: 13.05.2021 downloading
+        try {
+            File file = new File("client/" + fileName);
+            if (!file.exists()) {
+                file.createNewFile();
+            }
+
+            out.writeUTF("download");
+            out.writeUTF(fileName);
+
+            FileOutputStream fos = new FileOutputStream(file);
+            long fileLength = in.readLong();
+            int bufferSize = 8 * 1024;
+            byte[] buffer = new byte[bufferSize];
+
+            /* Это необходимо для чтения данных только файла,
+               т.к. DataOutputStream в классе ClientHandler используется
+               для передачи как символьных, так и двоичных данных
+               (привет, нарушение инкапсуляции). */
+            int wholeChunks = (int) fileLength / bufferSize;
+            int lastChunkSize = (int) fileLength % bufferSize;
+            byte[] lastChunk = new byte[lastChunkSize];
+
+            for (int i = 0; i < wholeChunks; i++) {
+                fos.write(buffer, 0, in.read(buffer));
+            }
+            fos.write(lastChunk, 0, in.read(lastChunk));
+            fos.close();
+
+            String status = in.readUTF();
+            System.out.println("Downloading status " + status);
+
+            /* Это необходимо, чтобы очистить данные от строки команды
+               (см. ClientHandler.run()), т.к. при повторном скачивании файла
+               вместо размера файла читается "download".
+               Из метода ClientHandler.run() строку "out.writeUTF(command);",
+               по идее, нужно просто удалить, т.к. в текущей реализации она не имеет смысла
+               и, как видно, только вредит.
+               Пока трогать не стал, т.к. по заданию в pull request должен быть
+               только код методов скачивания файлов. */
+            in.readUTF();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private void sendMessage(String message) {

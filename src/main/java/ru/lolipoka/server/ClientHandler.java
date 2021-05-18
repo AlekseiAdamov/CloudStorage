@@ -63,8 +63,32 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    private void download(DataOutputStream out, DataInputStream in) {
-        // TODO: 13.05.2021 downloading
+    private void download(DataOutputStream out, DataInputStream in) throws IOException {
+        String fileName = in.readUTF();
+        try {
+            File file = new File("server/" + fileName);
+            if (!file.exists()) {
+                throw new FileNotFoundException();
+            }
+
+            long fileLength = file.length();
+            out.writeLong(fileLength);
+
+            FileInputStream fis = new FileInputStream(file);
+            int read;
+            byte[] buffer = new byte[BUFFER_SIZE];
+
+            while ((read = fis.read(buffer)) != -1) {
+                out.write(buffer, 0, read);
+            }
+            out.flush();
+
+            out.writeUTF("OK");
+        } catch (FileNotFoundException e) {
+            System.err.println("File not found - /server/" + fileName);
+        } catch (IOException e) {
+            out.writeUTF("WRONG");
+        }
     }
 
     private void disconnect() {
