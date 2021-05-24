@@ -92,7 +92,7 @@ public class NioTelnetServer {
             String command = parameters[0];
 
             switch (command) {
-                case "--help":
+                case "help":
                     displayHelp(selector, client);
                     break;
                 case "ls":
@@ -147,14 +147,7 @@ public class NioTelnetServer {
 
     private void createFile(String commandLine, Selector selector, SocketAddress client) throws IOException {
         String[] parameters = commandLine.split(" ");
-
-        if (parameters.length > 2) {
-            String msg = getMessageFromTemplate(MsgTemplate.TOO_MUCH_PARAMETERS, Command.TOUCH.getSyntax());
-            sendMessage(msg, selector, client);
-        }
-        if (parameters.length < 2) {
-            String msg = getMessageFromTemplate(MsgTemplate.NOT_ENOUGH_PARAMETERS, Command.TOUCH.getSyntax());
-            sendMessage(msg, selector, client);
+        if (!parametersAreOk(parameters, Command.TOUCH, selector, client)) {
             return;
         }
 
@@ -171,19 +164,18 @@ public class NioTelnetServer {
 
     private void createDirectory(String commandLine, Selector selector, SocketAddress client) throws IOException {
         String[] parameters = commandLine.split(" ");
-
-        if (parameters.length > 2) {
-            String msg = getMessageFromTemplate(MsgTemplate.TOO_MUCH_PARAMETERS, Command.MKDIR.getSyntax());
-            sendMessage(msg, selector, client);
-        }
-        if (parameters.length < 2) {
-            String msg = getMessageFromTemplate(MsgTemplate.NOT_ENOUGH_PARAMETERS, Command.MKDIR.getSyntax());
-            sendMessage(msg, selector, client);
+        if (!parametersAreOk(parameters, Command.MKDIR, selector, client)) {
             return;
         }
 
         String dirName = parameters[1];
         Path dirPath = Paths.get(currentPath.toString(), dirName);
+
+        if (Files.exists(dirPath)) {
+            String msg = getMessageFromTemplate(MsgTemplate.DIRECTORY_ALREADY_EXISTS, dirName);
+            sendMessage(msg, selector, client);
+            return;
+        }
 
         try {
             Files.createDirectory(dirPath);
@@ -196,14 +188,7 @@ public class NioTelnetServer {
 
     private void changeDirectory(String commandLine, Selector selector, SocketAddress client) throws IOException {
         String[] parameters = commandLine.split(" ");
-
-        if (parameters.length > 2) {
-            String msg = getMessageFromTemplate(MsgTemplate.TOO_MUCH_PARAMETERS, Command.CD.getSyntax());
-            sendMessage(msg, selector, client);
-        }
-        if (parameters.length < 2) {
-            String msg = getMessageFromTemplate(MsgTemplate.NOT_ENOUGH_PARAMETERS, Command.CD.getSyntax());
-            sendMessage(msg, selector, client);
+        if (!parametersAreOk(parameters, Command.CD, selector, client)) {
             return;
         }
 
@@ -238,14 +223,7 @@ public class NioTelnetServer {
 
     private void copyFile(String commandLine, Selector selector, SocketAddress client) throws IOException {
         String[] parameters = commandLine.split(" ");
-
-        if (parameters.length > 3) {
-            String msg = getMessageFromTemplate(MsgTemplate.TOO_MUCH_PARAMETERS, Command.COPY.getSyntax());
-            sendMessage(msg, selector, client);
-        }
-        if (parameters.length < 3) {
-            String msg = getMessageFromTemplate(MsgTemplate.NOT_ENOUGH_PARAMETERS, Command.COPY.getSyntax());
-            sendMessage(msg, selector, client);
+        if (!parametersAreOk(parameters, Command.COPY, selector, client)) {
             return;
         }
 
@@ -281,14 +259,7 @@ public class NioTelnetServer {
 
     private void deleteFile(String commandLine, Selector selector, SocketAddress client) throws IOException {
         String[] parameters = commandLine.split(" ");
-
-        if (parameters.length > 2) {
-            String msg = getMessageFromTemplate(MsgTemplate.TOO_MUCH_PARAMETERS, Command.RM.getSyntax());
-            sendMessage(msg, selector, client);
-        }
-        if (parameters.length < 2) {
-            String msg = getMessageFromTemplate(MsgTemplate.NOT_ENOUGH_PARAMETERS, Command.RM.getSyntax());
-            sendMessage(msg, selector, client);
+        if (!parametersAreOk(parameters, Command.RM, selector, client)) {
             return;
         }
 
@@ -312,14 +283,7 @@ public class NioTelnetServer {
 
     private String readFile(String commandLine, Selector selector, SocketAddress client) throws IOException {
         String[] parameters = commandLine.split(" ");
-
-        if (parameters.length > 2) {
-            String msg = getMessageFromTemplate(MsgTemplate.TOO_MUCH_PARAMETERS, Command.CAT.getSyntax());
-            sendMessage(msg, selector, client);
-        }
-        if (parameters.length < 2) {
-            String msg = getMessageFromTemplate(MsgTemplate.NOT_ENOUGH_PARAMETERS, Command.CAT.getSyntax());
-            sendMessage(msg, selector, client);
+        if (!parametersAreOk(parameters, Command.CAT, selector, client)) {
             return "";
         }
 
@@ -359,13 +323,7 @@ public class NioTelnetServer {
 
     private String setNickname(String commandLine, Selector selector, SocketAddress client) throws IOException {
         String[] parameters = commandLine.split(" ");
-        if (parameters.length > 2) {
-            String msg = getMessageFromTemplate(MsgTemplate.TOO_MUCH_PARAMETERS, Command.NICK.getSyntax());
-            sendMessage(msg, selector, client);
-        }
-        if (parameters.length < 2) {
-            String msg = getMessageFromTemplate(MsgTemplate.NOT_ENOUGH_PARAMETERS, Command.NICK.getSyntax());
-            sendMessage(msg, selector, client);
+        if (!parametersAreOk(parameters, Command.NICK, selector, client)) {
             return "";
         }
         return parameters[1];
@@ -406,6 +364,21 @@ public class NioTelnetServer {
         }
     }
 
+    private boolean parametersAreOk(String[] parameters, Command command,
+                                    Selector selector, SocketAddress client) throws IOException {
+        if (parameters.length > command.getNumOfParameters()) {
+            String msg = getMessageFromTemplate(MsgTemplate.TOO_MUCH_PARAMETERS, command.getSyntax());
+            sendMessage(msg, selector, client);
+            // true, потому что лишние параметры игнорируются (см. MsgTemplate.TOO_MUCH_PARAMETERS.template).
+            return true;
+        }
+        if (parameters.length < command.getNumOfParameters()) {
+            String msg = getMessageFromTemplate(MsgTemplate.NOT_ENOUGH_PARAMETERS, command.getSyntax());
+            sendMessage(msg, selector, client);
+            return false;
+        }
+        return true;
+    }
     private void handleAccept(SelectionKey key, Selector selector) throws IOException {
         SocketChannel channel = ((ServerSocketChannel) key.channel()).accept();
         channel.configureBlocking(false);
@@ -413,7 +386,7 @@ public class NioTelnetServer {
 
         channel.register(selector, SelectionKey.OP_READ, "some attach");
         channel.write(ByteBuffer.wrap("Hello user!\n\r".getBytes(StandardCharsets.UTF_8)));
-        channel.write(ByteBuffer.wrap("Enter --help for support info\n\r".getBytes(StandardCharsets.UTF_8)));
+        channel.write(ByteBuffer.wrap("Enter 'help' (without quotes) for available commands info\n\r".getBytes(StandardCharsets.UTF_8)));
     }
 
     public static void main(String[] args) throws IOException {

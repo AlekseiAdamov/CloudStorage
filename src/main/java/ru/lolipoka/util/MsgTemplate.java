@@ -7,6 +7,7 @@ public enum MsgTemplate {
     UNABLE_TO_CREATE("Unable to create %s.\n\r"),
     UNABLE_TO_DELETE("Unable to delete %s.\n\r"),
     DIRECTORY_DOES_NOT_EXIST("Directory %s does not exist.\n\r"),
+    DIRECTORY_ALREADY_EXISTS("Directory %s already exists.\n\r"),
     IS_NOT_FILE("%s is not file. Unable to read.\n\r");
 
     private final String template;
