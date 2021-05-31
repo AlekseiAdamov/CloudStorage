@@ -1,15 +1,17 @@
 package ru.lolipoka.client;
 
-import com.formdev.flatlaf.FlatDarkLaf;
+import com.formdev.flatlaf.FlatLightLaf;
+import com.formdev.flatlaf.extras.FlatSVGIcon;
+import com.formdev.flatlaf.extras.FlatSVGUtils;
 import ru.lolipoka.client.util.FileTableModel;
 import ru.lolipoka.client.util.FilesTable;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.URL;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -24,6 +26,9 @@ public class GuiClient extends JFrame {
 
     private SocketChannel channel;
     private JSplitPane files;
+    private JTextField serverAddressField;
+    private JTextField serverPortField;
+    private JButton addUserButton;
 
     public GuiClient() {
         prepareGUI();
@@ -32,7 +37,7 @@ public class GuiClient extends JFrame {
     public void prepareGUI() {
         setWindowParameters();
         setAppIcon();
-        addConnectionPanel();
+        addTopPanel();
         addFilesPanel();
 
         addWindowListener(new WindowAdapter() {
@@ -54,32 +59,73 @@ public class GuiClient extends JFrame {
     }
 
     private void setAppIcon() {
-        Toolkit tk = Toolkit.getDefaultToolkit();
-        URL appIconFile = getClass().getResource("/cloud.png");
-        Image appIcon = tk.getImage(appIconFile);
-        setIconImage(appIcon);
+        setIconImage(FlatSVGUtils.svg2image("/app.svg", 16, 16));
     }
 
-    private void addConnectionPanel() {
+    private void addTopPanel() {
+        JPanel topPanel = new JPanel(new BorderLayout());
+
+        JPanel connectionPanel = getConnectionPanel();
+        topPanel.add(connectionPanel, BorderLayout.WEST);
+
+        JPanel adminPanel = getAdminPanel();
+        topPanel.add(adminPanel, BorderLayout.EAST);
+
+        add(topPanel, BorderLayout.NORTH);
+    }
+
+    private JPanel getConnectionPanel() {
+        serverAddressField = new JTextField();
+        serverAddressField.setToolTipText("Server address");
+        serverAddressField.setText(HOST);
+
+        serverPortField = new JTextField();
+        serverPortField.setToolTipText("Server port");
+        serverPortField.setText(String.valueOf(PORT));
+
         JTextField loginField = new JTextField();
         loginField.setToolTipText("User name");
 
         JPasswordField passwordField = new JPasswordField();
         passwordField.setToolTipText("Password");
 
-        JButton connectButton = new JButton("Connect");
+        JButton connectButton = new JButton();
+        connectButton.setToolTipText("Connect to the selected server with the specified credentials");
+        connectButton.setIcon(new FlatSVGIcon("connect.svg", 16, 16));
         connectButton.addActionListener(e -> connect());
 
-        JPanel loginPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        loginPanel.add(loginField);
-        loginPanel.add(passwordField);
-        loginPanel.add(connectButton);
+        JLabel serverSplitterLabel = new JLabel(":");
+        JLabel userSplitterLabel = new JLabel(":");
+        JLabel atLabel = new JLabel("@");
 
-        add(loginPanel, BorderLayout.NORTH);
+        JPanel connectionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        connectionPanel.add(loginField);
+        connectionPanel.add(userSplitterLabel);
+        connectionPanel.add(passwordField);
+        connectionPanel.add(atLabel);
+        connectionPanel.add(serverAddressField);
+        connectionPanel.add(serverSplitterLabel);
+        connectionPanel.add(serverPortField);
+        connectionPanel.add(connectButton);
+
+        return connectionPanel;
+    }
+
+    private JPanel getAdminPanel() {
+        JPanel adminPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        addUserButton = new JButton();
+        addUserButton.setToolTipText("Add new user");
+        addUserButton.setIcon(new FlatSVGIcon("user.svg", 16, 16));
+        adminPanel.add(addUserButton);
+
+        // Only visible to administrators after logging in. See connect().
+        adminPanel.setVisible(false);
+
+        return adminPanel;
     }
 
     private void connect() {
-        InetSocketAddress address = new InetSocketAddress(HOST, PORT);
+        InetSocketAddress address = new InetSocketAddress(getHost(), getPort());
         try {
             channel = SocketChannel.open(address);
             System.out.println("Client connected");
@@ -88,6 +134,24 @@ public class GuiClient extends JFrame {
             closeChannel();
             System.out.println("Unable to connect");
         }
+    }
+
+    private String getHost() {
+        String host = HOST;
+        String serverAddressValue = serverAddressField.getText();
+        if (!(serverAddressValue.isEmpty() || serverAddressValue.equals(host))) {
+            host = serverAddressValue;
+        }
+        return host;
+    }
+
+    private int getPort() {
+        String port = String.valueOf(PORT);
+        String portValue = serverPortField.getText();
+        if (!(portValue.isEmpty() || portValue.equals(port))) {
+            port = portValue;
+        }
+        return Integer.parseInt(port);
     }
 
     private void closeChannel() {
@@ -104,10 +168,10 @@ public class GuiClient extends JFrame {
     }
 
     private void addFilesPanel() {
-        JScrollPane clientFiles = getFilesPane(USER_PATH, "Client files");
-        JScrollPane serverFiles = getFilesPane(ROOT_PATH, "Server files");
+        JPanel clientFilesPanel = getClientFilesPanel();
+        JPanel serverFilesPanel = getServerFilesPanel();
 
-        files = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, clientFiles, serverFiles);
+        files = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, clientFilesPanel, serverFilesPanel);
         setDividerPosition();
 
         files.addComponentListener(new ComponentAdapter() {
@@ -120,22 +184,100 @@ public class GuiClient extends JFrame {
         add(files, BorderLayout.CENTER);
     }
 
+    private JPanel getServerFilesPanel() {
+        JPanel filesPanel = new JPanel(new BorderLayout());
+        filesPanel.setBorder(BorderFactory.createTitledBorder("Server files"));
+
+        JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
+        JButton downloadButton = new JButton();
+        downloadButton.setToolTipText("Download the selected file to the current client directory");
+        downloadButton.setIcon(new FlatSVGIcon("download.svg", 16, 16));
+        buttonsPanel.add(downloadButton);
+
+        JButton copyButton = new JButton();
+        copyButton.setToolTipText("Create a copy of the selected file or directory in the current server directory");
+        copyButton.setIcon(new FlatSVGIcon("copy.svg", 16, 16));
+        buttonsPanel.add(copyButton);
+
+        JButton createDirectoryButton = new JButton();
+        createDirectoryButton.setToolTipText("Create new directory in the current server directory");
+        createDirectoryButton.setIcon(new FlatSVGIcon("folder.svg", 16, 16));
+        buttonsPanel.add(createDirectoryButton);
+
+        JButton deleteButton = new JButton();
+        deleteButton.setToolTipText("Delete the selected file or directory in the current server directory");
+        deleteButton.setIcon(new FlatSVGIcon("delete.svg", 16, 16));
+        buttonsPanel.add(deleteButton);
+
+        JButton grantPermissionsButton = new JButton();
+        grantPermissionsButton.setToolTipText("Grant permissions for the selected file or directory to other users");
+        grantPermissionsButton.setIcon(new FlatSVGIcon("share.svg", 16, 16));
+        buttonsPanel.add(grantPermissionsButton);
+
+        JTextField serverPathField = new JTextField(String.valueOf(ROOT_PATH));
+
+        JPanel buttonsAndPathPanel = new JPanel();
+        buttonsAndPathPanel.setLayout(new BoxLayout(buttonsAndPathPanel, BoxLayout.PAGE_AXIS));
+        buttonsAndPathPanel.add(buttonsPanel);
+        buttonsAndPathPanel.add(serverPathField);
+
+        filesPanel.add(buttonsAndPathPanel, BorderLayout.NORTH);
+
+        FileTableModel filesModel = new FileTableModel(ROOT_PATH.toFile());
+        FilesTable filesTable = new FilesTable(filesModel);
+
+        JScrollPane serverFiles = new JScrollPane(filesTable);
+        filesPanel.add(serverFiles, BorderLayout.CENTER);
+
+        JLabel serverBottomLabel = new JLabel("%d files of size %d bytes");
+        filesPanel.add(serverBottomLabel, BorderLayout.SOUTH);
+
+        return filesPanel;
+    }
+
+    private JPanel getClientFilesPanel() {
+        JPanel filesPanel = new JPanel(new BorderLayout());
+        filesPanel.setBorder(BorderFactory.createTitledBorder("Client files"));
+
+        JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
+        JComboBox<File> diskList = new JComboBox<>(File.listRoots());
+        diskList.setToolTipText("Current disk drive");
+        buttonsPanel.add(diskList);
+
+        JButton uploadButton = new JButton();
+        uploadButton.setToolTipText("Upload the selected file to the current server directory");
+        uploadButton.setIcon(new FlatSVGIcon("upload.svg", 16, 16));
+        buttonsPanel.add(uploadButton);
+
+        JTextField clientPathField = new JTextField(String.valueOf(USER_PATH));
+
+        JPanel buttonsAndPathPanel = new JPanel();
+        buttonsAndPathPanel.setLayout(new BoxLayout(buttonsAndPathPanel, BoxLayout.PAGE_AXIS));
+        buttonsAndPathPanel.add(buttonsPanel);
+        buttonsAndPathPanel.add(clientPathField);
+
+        filesPanel.add(buttonsAndPathPanel, BorderLayout.NORTH);
+
+        FileTableModel filesModel = new FileTableModel(USER_PATH.toFile());
+        FilesTable filesTable = new FilesTable(filesModel);
+
+        JScrollPane clientFiles = new JScrollPane(filesTable);
+        filesPanel.add(clientFiles, BorderLayout.CENTER);
+
+        JLabel clientBottomLabel = new JLabel("%d files of size %d bytes");
+        filesPanel.add(clientBottomLabel, BorderLayout.SOUTH);
+
+        return filesPanel;
+    }
+
     private void setDividerPosition() {
         files.setDividerLocation(getWidth() / 2);
     }
 
-    private JScrollPane getFilesPane(Path path, String name) {
-        FileTableModel filesModel = new FileTableModel(path.toFile());
-        FilesTable filesTable = new FilesTable(filesModel);
-
-        JScrollPane filesPane = new JScrollPane(filesTable);
-        filesPane.setBorder(BorderFactory.createTitledBorder(name));
-
-        return filesPane;
-    }
-
     public static void main(String[] args) {
-        FlatDarkLaf.install();
+        FlatLightLaf.install();
         SwingUtilities.invokeLater(GuiClient::new);
     }
 }

@@ -13,3 +13,11 @@
     <li>Search</li>
     <li>Sort ( name | size | date )</li>
 </ol>
+
+<div>Icons made by <a href="https://www.flaticon.com/authors/bqlqn" title="bqlqn">bqlqn</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div>
+<br>
+<div>
+    <img src="/src/main/images/client.png">
+</div>
+
+
