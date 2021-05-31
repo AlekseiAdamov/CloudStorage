@@ -39,9 +39,10 @@ public class TableKeyListener implements KeyListener {
         final int currentRowIndex = table.getSelectedRow();
         if (currentRowIndex > -1) {
             final File selectedDir = model.getFile(currentRowIndex);
+            // TODO: deal with NPE on some symbolic links.
             if (selectedDir.isDirectory()) {
                 model.setDir(selectedDir);
-                model.setFiles(selectedDir.listFiles());
+                setPathFieldValue(selectedDir.getPath());
             }
         }
     }
@@ -52,9 +53,15 @@ public class TableKeyListener implements KeyListener {
             final File parent = new File(parentName);
             if (!model.getDir().equals(parent)) {
                 model.setDir(parent);
-                model.setFiles(parent.listFiles());
+                setPathFieldValue(parentName);
             }
         }
+    }
+
+    private void setPathFieldValue(String path) {
+        // Quite ugly. Still struggling to figure out how to notify
+        // FilesPanel container more elegantly to refresh path field value.
+        ((FilesPanel) table.getParent().getParent().getParent()).setPath(path);
     }
 }
 
