@@ -46,10 +46,17 @@ public class TableMouseListener implements MouseListener {
         final int currentRowIndex = table.getSelectedRow();
         if (currentRowIndex > -1) {
             final File selectedDir = model.getFile(currentRowIndex);
+            // TODO: deal with NPE on some symbolic links.
             if (selectedDir.isDirectory()) {
                 model.setDir(selectedDir);
-                model.setFiles(selectedDir.listFiles());
+                setPathFieldValue(selectedDir.getPath());
             }
         }
+    }
+
+    private void setPathFieldValue(String path) {
+        // Quite ugly. Still struggling to figure out how to notify
+        // FilesPanel container more elegantly to refresh path field value.
+        ((FilesPanel) table.getParent().getParent().getParent()).setPath(path);
     }
 }

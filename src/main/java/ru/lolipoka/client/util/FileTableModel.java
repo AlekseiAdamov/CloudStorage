@@ -37,6 +37,7 @@ public class FileTableModel extends AbstractTableModel {
 
     public void setDir(File dir) {
         this.dir = dir;
+        setFiles(dir.listFiles());
     }
 
     public void setFiles(File[] files) {
