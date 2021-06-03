@@ -1,19 +1,19 @@
-package ru.lolipoka.client;
+package ru.alekseiadamov.cloudstorage.client;
 
 import com.formdev.flatlaf.FlatLightLaf;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import com.formdev.flatlaf.extras.FlatSVGUtils;
-import ru.lolipoka.client.util.FileTableModel;
-import ru.lolipoka.client.util.FilesPanel;
-import ru.lolipoka.client.util.FilesTable;
+import ru.alekseiadamov.cloudstorage.client.util.FileTableModel;
+import ru.alekseiadamov.cloudstorage.client.util.FilesPanel;
+import ru.alekseiadamov.cloudstorage.client.util.FilesTable;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.nio.channels.SocketChannel;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -21,14 +21,13 @@ import java.text.DecimalFormat;
 
 public class GuiClient extends JFrame {
 
-    private final static Path ROOT_PATH = Paths.get("server");
+    private final static Path ROOT_PATH = Paths.get("files/server");
     private final static Path USER_PATH = Paths.get(System.getProperty("user.home"));
     private final static String HOST = "localhost";
     private final static String STATUS_TEMPLATE = "%s files of size %s bytes";
     private final static int PORT = 5678;
     private final GraphicsEnvironment env = GraphicsEnvironment.getLocalGraphicsEnvironment();
 
-    private SocketChannel channel;
     private JSplitPane files;
     private JTextField serverAddressField;
     private JTextField serverPortField;
@@ -36,11 +35,15 @@ public class GuiClient extends JFrame {
     private FilesPanel serverFilesPanel;
     private JPanel adminPanel;
     private FilesTable serverFiles;
+    private Client client;
 
     public GuiClient() {
         prepareGUI();
     }
 
+    /**
+     * Prepares application GUI and displays it to the user.
+     */
     public void prepareGUI() {
         setWindowParameters();
         setAppIcon();
@@ -57,6 +60,9 @@ public class GuiClient extends JFrame {
         setVisible(true);
     }
 
+    /**
+     * Sets initial application window parameters.
+     */
     private void setWindowParameters() {
         setTitle("File cloud explorer");
         setLayout(new BorderLayout());
@@ -65,10 +71,18 @@ public class GuiClient extends JFrame {
         setMaximizedBounds(env.getMaximumWindowBounds());
     }
 
+    /**
+     * Sets application icon.
+     */
     private void setAppIcon() {
         setIconImage(FlatSVGUtils.svg2image("/app.svg", 16, 16));
     }
 
+    /**
+     * Adds the top panel to the main application frame.
+     * The panel consists of a connection panel and an administration panel,
+     * the latter of which is only visible to users with the 'administrator' flag.
+     */
     private void addTopPanel() {
         JPanel topPanel = new JPanel(new BorderLayout());
 
@@ -81,6 +95,9 @@ public class GuiClient extends JFrame {
         add(topPanel, BorderLayout.NORTH);
     }
 
+    /**
+     * @return Connection panel.
+     */
     private JPanel getConnectionPanel() {
         serverAddressField = new JTextField();
         serverAddressField.setToolTipText("Server address");
@@ -119,6 +136,12 @@ public class GuiClient extends JFrame {
         return connectionPanel;
     }
 
+    /**
+     * Returns the administration panel. Invisible by default.
+     * Becomes visible only after establishing a connection and only for users with the 'administrator' flag.
+     *
+     * @return Administration panel.
+     */
     private JPanel getAdminPanel() {
         adminPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton addUserButton = new JButton();
@@ -137,17 +160,25 @@ public class GuiClient extends JFrame {
         // TODO: implement.
     }
 
+    /**
+     * Connects to the server.
+     */
     private void connect() {
-        InetSocketAddress address = new InetSocketAddress(getHost(), getPort());
+        InetAddress address = null;
         try {
-            channel = SocketChannel.open(address);
-            System.out.println("Client connected");
-            adminPanel.setVisible(userIsAdmin());
-        } catch (IOException e) {
-            e.printStackTrace();
-            closeChannel();
-            System.out.println("Unable to connect");
+            address = InetAddress.getByName(getHost());
+        } catch (UnknownHostException e) {
+            JOptionPane.showMessageDialog(this, "Wrong server address:\n" + e.getMessage(),
+                    "Wrong server address", JOptionPane.ERROR_MESSAGE);
         }
+        client = new Client(address, getPort());
+
+        // TODO: rework.
+        // client.channel may be null because client starts in a separate thread.
+        if (client.channelIsReady()) {
+            client.sendMessage("/auth login password");
+        }
+        adminPanel.setVisible(userIsAdmin());
     }
 
     private boolean userIsAdmin() {
@@ -155,6 +186,9 @@ public class GuiClient extends JFrame {
         return true;
     }
 
+    /**
+     * @return Server address.
+     */
     private String getHost() {
         String host = HOST;
         final String serverAddressValue = serverAddressField.getText();
@@ -164,6 +198,9 @@ public class GuiClient extends JFrame {
         return host;
     }
 
+    /**
+     * @return Server port.
+     */
     private int getPort() {
         String port = String.valueOf(PORT);
         final String portValue = serverPortField.getText();
@@ -173,19 +210,18 @@ public class GuiClient extends JFrame {
         return Integer.parseInt(port);
     }
 
+    /**
+     * Closes channel to the server.
+     */
     private void closeChannel() {
-        if (channel == null) {
-            return;
-        }
-        try {
-            channel.close();
-            System.out.println("Client disconnected properly");
-        } catch (IOException ioException) {
-            ioException.printStackTrace();
-            System.out.println("Client disconnected");
+        if (client != null && client.channelIsReady()) {
+            client.closeChannel();
         }
     }
 
+    /**
+     * Adds files panel to the main application frame.
+     */
     private void addFilesPanel() {
         clientFilesPanel = getClientFilesPanel();
         clientFilesPanel.setStatus(getStatus(clientFilesPanel.getDir()));
@@ -206,10 +242,16 @@ public class GuiClient extends JFrame {
         add(files, BorderLayout.CENTER);
     }
 
+    /**
+     * Sets divider's default position at 1/2 of app window.
+     */
     private void setDividerPosition() {
         files.setDividerLocation(getWidth() / 2);
     }
 
+    /**
+     * @return Client files panel.
+     */
     private FilesPanel getClientFilesPanel() {
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT));
 
@@ -229,9 +271,14 @@ public class GuiClient extends JFrame {
 
         JLabel status = new JLabel(STATUS_TEMPLATE);
 
-        return new FilesPanel("Client files", buttons, files, status);
+        return new FilesPanel("GuiClient files", buttons, files, status);
     }
 
+    /**
+     * Changes the disk drive of client's file system.
+     *
+     * @param newDisk Chosen disk drive.
+     */
     private void changeDisk(File newDisk) {
         if (clientFilesPanel.getDir().equals(newDisk)) {
             return;
@@ -241,6 +288,10 @@ public class GuiClient extends JFrame {
         clientFilesPanel.setStatus(getStatus(newDisk));
     }
 
+    /**
+     * @param directory Current directory.
+     * @return A string representing information about the number and total size of files in a current directory..
+     */
     private String getStatus(File directory) {
         final long numOfFiles = getNumOfFiles(directory);
         final long numOfBytes = getNumOfBytes(directory);
@@ -252,7 +303,14 @@ public class GuiClient extends JFrame {
         return String.format(STATUS_TEMPLATE, decimalFormat.format(numOfFiles), decimalFormat.format(numOfBytes));
     }
 
+    /**
+     * @param directory Current directory.
+     * @return Total number of files in a directory.
+     */
     private long getNumOfFiles(File directory) {
+        if (directory == null) {
+            return 0;
+        }
         long numOfFiles = 0;
         try {
             numOfFiles = Files.list(directory.toPath()).count();
@@ -262,7 +320,14 @@ public class GuiClient extends JFrame {
         return numOfFiles;
     }
 
+    /**
+     * @param directory Current directory.
+     * @return Total size (in bytes) of files in a directory.
+     */
     private long getNumOfBytes(File directory) {
+        if (directory == null) {
+            return 0;
+        }
         long numOfBytes = 0;
         try {
             numOfBytes = Files.list(directory.toPath()).mapToLong(e -> e.toFile().length()).sum();
@@ -272,10 +337,18 @@ public class GuiClient extends JFrame {
         return numOfBytes;
     }
 
+    /**
+     * Uploads the selected file from the client to the current directory on the server.
+     */
     private void upload() {
-        // TODO: implement.
+        File selectedFile = clientFilesPanel.getSelectedFile();
+        File currentServerDir = serverFilesPanel.getDir();
+        client.upload(selectedFile, currentServerDir);
     }
 
+    /**
+     * @return Server files panel.
+     */
     private FilesPanel getServerFilesPanel() {
 
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT));
@@ -319,38 +392,60 @@ public class GuiClient extends JFrame {
         return new FilesPanel("Server files", buttons, serverFiles, status);
     }
 
+    /**
+     * Downloads the selected file from the server to the current directory on the client.
+     */
     private void download() {
-        // TODO: implement.
+        File selectedFile = serverFilesPanel.getSelectedFile();
+        File currentClientDir = clientFilesPanel.getDir();
+        client.download(selectedFile, currentClientDir);
     }
 
+    /**
+     * Copies the selected file on the server to the new file in the same directory.
+     */
     private void copy() {
-        // TODO: implement.
+        File selectedFile = serverFilesPanel.getSelectedFile();
+        String newFileName = JOptionPane.showInputDialog("Input new file name:");
+        if (newFileName.equals(selectedFile.getName())) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "The name of the new file must be different from the name of the copied file",
+                    "Invalid name",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        File newFile = Paths.get(serverFilesPanel.getDir().getPath(), newFileName).toFile();
+        client.copy(selectedFile, newFile);
     }
 
+    /**
+     * Creates a new directory with the specified name on the server.
+     */
     private void createDirectory() {
-        // TODO: add dialog and existence check.
-        final File currentDir = serverFilesPanel.getDir();
-        try {
-            Files.createDirectory(Paths.get(currentDir.getName(), "test"));
-            serverFilesPanel.setDir(currentDir); // To refresh file list.
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        final File currentServerDir = serverFilesPanel.getDir();
+        String dirName = JOptionPane.showInputDialog("Input new directory name");
+        String dirPath = Paths.get(currentServerDir.getPath(), dirName).toString();
+        client.createDirectory(dirPath);
     }
 
+    /**
+     * Deletes the selected file on the server.
+     */
     private void delete() {
-        final int currentRowIndex = serverFiles.getSelectedRow();
-        if (currentRowIndex > -1) {
-            final File selectedFile = ((FileTableModel) serverFiles.getModel()).getFile(currentRowIndex);
-            try {
-                Files.delete(selectedFile.toPath());
-                serverFilesPanel.setDir(serverFilesPanel.getDir()); // To refresh file list.
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+        final File selectedFile = serverFilesPanel.getSelectedFile();
+        try {
+            Files.delete(selectedFile.toPath());
+            serverFilesPanel.setDir(serverFilesPanel.getDir()); // To refresh file list.
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(this, "Failed to delete the file:\n" + e.getMessage(),
+                    "Failed to delete", JOptionPane.ERROR_MESSAGE);
         }
     }
 
+    /**
+     * Modifies users permissions for the selected file.
+     */
     private void grantPermissions() {
         // TODO: implement.
     }

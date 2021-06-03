@@ -1,4 +1,4 @@
-package ru.lolipoka.netty;
+package ru.alekseiadamov.cloudstorage.server;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
@@ -9,13 +9,12 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
-import ru.lolipoka.netty.handlers.ByteBufInputHandler;
-import ru.lolipoka.netty.handlers.ChatMessageHandler;
-import ru.lolipoka.netty.handlers.OutputHandler;
+import ru.alekseiadamov.cloudstorage.server.handlers.ServerInputHandler;
+import ru.alekseiadamov.cloudstorage.server.handlers.ServerOutputHandler;
 
-public class NettyBaseServer {
+public class Server {
 
-    public NettyBaseServer() {
+    public Server() {
         EventLoopGroup auth = new NioEventLoopGroup(1);
         EventLoopGroup worker = new NioEventLoopGroup();
 
@@ -26,16 +25,15 @@ public class NettyBaseServer {
                     .childHandler(new ChannelInitializer<Channel>() {
                         @Override
                         protected void initChannel(Channel ch) {
-                            ch.pipeline().addLast(
-                                    new StringEncoder(),
-                                    new StringDecoder(),
-                                    new ByteBufInputHandler(),
-                                    new OutputHandler(),
-                                    new ChatMessageHandler()
-                            );
+                            ch.pipeline()
+                                    .addLast(new StringDecoder(),
+                                            new StringEncoder(),
+                                            new ServerInputHandler(),
+                                            new ServerOutputHandler()
+                                    );
                         }
                     });
-            ChannelFuture future = bootstrap.bind(4000).sync();
+            ChannelFuture future = bootstrap.bind(5678).sync();
             System.out.println("Server started");
             future.channel().closeFuture().sync();
             System.out.println("Server closed");
@@ -48,6 +46,6 @@ public class NettyBaseServer {
     }
 
     public static void main(String[] args) {
-        new NettyBaseServer();
+        new Server();
     }
 }
