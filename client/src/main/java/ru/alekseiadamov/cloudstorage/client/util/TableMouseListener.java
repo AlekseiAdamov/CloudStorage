@@ -1,4 +1,4 @@
-package ru.lolipoka.client.util;
+package ru.alekseiadamov.cloudstorage.client.util;
 
 import javax.swing.*;
 import java.awt.event.MouseEvent;
