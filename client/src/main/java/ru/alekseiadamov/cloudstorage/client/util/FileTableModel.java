@@ -1,4 +1,4 @@
-package ru.lolipoka.client.util;
+package ru.alekseiadamov.cloudstorage.client.util;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileSystemView;
@@ -52,6 +52,9 @@ public class FileTableModel extends AbstractTableModel {
 
     @Override
     public int getRowCount() {
+        if (files == null) {
+            return 0;
+        }
         return files.length;
     }
 

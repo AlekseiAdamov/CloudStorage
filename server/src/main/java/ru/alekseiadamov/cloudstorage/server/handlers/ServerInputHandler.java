@@ -1,10 +1,10 @@
-package ru.lolipoka.netty.handlers;
+package ru.alekseiadamov.cloudstorage.server.handlers;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
-public class ByteBufInputHandler extends ChannelInboundHandlerAdapter {
+public class ServerInputHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
         System.out.println("Client connected: " + ctx.channel());
@@ -24,10 +24,12 @@ public class ByteBufInputHandler extends ChannelInboundHandlerAdapter {
             sb.append((char) buf.readByte());
         }
         ctx.fireChannelRead(sb.toString());
+        buf.release();
     }
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        super.exceptionCaught(ctx, cause);
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        cause.printStackTrace();
+        ctx.close();
     }
 }

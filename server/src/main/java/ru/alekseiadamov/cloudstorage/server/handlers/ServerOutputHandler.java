@@ -1,4 +1,4 @@
-package ru.lolipoka.netty.handlers;
+package ru.alekseiadamov.cloudstorage.server.handlers;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
@@ -7,7 +7,7 @@ import io.netty.channel.ChannelPromise;
 
 import java.nio.charset.StandardCharsets;
 
-public class OutputHandler extends ChannelOutboundHandlerAdapter {
+public class ServerOutputHandler extends ChannelOutboundHandlerAdapter {
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
         String message = String.valueOf(msg);
