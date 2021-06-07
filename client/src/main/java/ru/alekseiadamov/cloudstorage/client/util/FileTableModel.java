@@ -28,7 +28,9 @@ public class FileTableModel extends AbstractTableModel {
 
     public FileTableModel(File dir) {
         this.dir = dir;
-        this.files = dir.listFiles();
+        if (dir != null) {
+            this.files = dir.listFiles();
+        }
     }
 
     public File getDir() {
