@@ -1,10 +1,15 @@
 package ru.alekseiadamov.cloudstorage.client.util;
 
 import javax.swing.*;
+import javax.swing.event.TableModelEvent;
 import javax.swing.filechooser.FileSystemView;
 import javax.swing.table.AbstractTableModel;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Date;
+import java.util.concurrent.TimeUnit;
 
 public class FileTableModel extends AbstractTableModel {
     private final FileSystemView fileSystemView = FileSystemView.getFileSystemView();
@@ -12,6 +17,7 @@ public class FileTableModel extends AbstractTableModel {
             "",
             "Name",
             "Size",
+            "Created",
             "Last modified",
             "Attributes"
     };
@@ -19,6 +25,7 @@ public class FileTableModel extends AbstractTableModel {
             ImageIcon.class,
             String.class,
             Long.class,
+            Date.class,
             Date.class,
             String.class
     };
@@ -77,6 +84,12 @@ public class FileTableModel extends AbstractTableModel {
     @Override
     public Object getValueAt(int row, int col) {
         File f = files[row];
+        BasicFileAttributes attributes = null;
+        try {
+            attributes = Files.readAttributes(f.toPath(), BasicFileAttributes.class);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         switch (col) {
             case 0:
                 return fileSystemView.getSystemIcon(f);
@@ -85,8 +98,13 @@ public class FileTableModel extends AbstractTableModel {
             case 2:
                 return f.length();
             case 3:
+                if (attributes != null) {
+                    return new Date(attributes.creationTime().to(TimeUnit.MILLISECONDS));
+                }
                 return new Date(f.lastModified());
             case 4:
+                return new Date(f.lastModified());
+            case 5:
                 return
                         (f.isDirectory() ? "d" : "")
                                 + (f.canRead() ? "r" : "")

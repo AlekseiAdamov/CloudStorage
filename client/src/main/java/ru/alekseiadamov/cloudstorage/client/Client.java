@@ -9,10 +9,11 @@ import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
 import ru.alekseiadamov.cloudstorage.client.handlers.ClientInputHandler;
 import ru.alekseiadamov.cloudstorage.client.handlers.ClientOutputHandler;
-import ru.alekseiadamov.cloudstorage.server.util.Command;
+import ru.alekseiadamov.cloudstorage.common.Command;
 
 import java.io.File;
 import java.net.InetAddress;
+import java.nio.file.Paths;
 
 public class Client {
     private SocketChannel channel;
@@ -54,7 +55,7 @@ public class Client {
     }
 
     public boolean channelIsReady() {
-        return channel != null;
+        return channel != null && channel.isActive();
     }
 
     public void sendMessage(String message) {
@@ -67,9 +68,11 @@ public class Client {
         sendMessage(message);
     }
 
-    public void download(File file, File destination) {
+    public void download(File file, File destDir) {
         // TODO: implement.
-        String message = String.format("%s %s %s", Command.DOWNLOAD, file.getPath(), destination.getPath());
+        String srcPath = file.getPath();
+        String destPath = Paths.get(destDir.getPath(), file.getName()).toString();
+        String message = String.format("%s %s %s", Command.DOWNLOAD, srcPath, destPath);
         sendMessage(message);
     }
 
@@ -100,5 +103,11 @@ public class Client {
     public void closeChannel() {
         sendMessage(Command.DISCONNECT);
         channel.close();
+    }
+
+    public File getServerDir() {
+        // TODO: implement.
+        sendMessage(Command.GET_DIR);
+        return null;
     }
 }

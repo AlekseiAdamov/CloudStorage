@@ -10,31 +10,10 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
     <artifactId>client</artifactId>
-<!--    <packaging>jar</packaging>-->
 
     <build>
         <pluginManagement>
             <plugins>
-<!--                <plugin>-->
-<!--                    <groupId>org.apache.maven.plugins</groupId>-->
-<!--                    <artifactId>maven-dependency-plugin</artifactId>-->
-<!--                    <version>3.1.2</version>-->
-<!--                    <executions>-->
-<!--                        <execution>-->
-<!--                            <id>copy-dependencies</id>-->
-<!--                            <phase>package</phase>-->
-<!--                            <goals>-->
-<!--                                <goal>copy-dependencies</goal>-->
-<!--                            </goals>-->
-<!--                            <configuration>-->
-<!--                                <outputDirectory>${project.build.directory}/lib</outputDirectory>-->
-<!--                                <overWriteReleases>true</overWriteReleases>-->
-<!--                                <overWriteSnapshots>true</overWriteSnapshots>-->
-<!--                                <overWriteIfNewer>true</overWriteIfNewer>-->
-<!--                            </configuration>-->
-<!--                        </execution>-->
-<!--                    </executions>-->
-<!--                </plugin>-->
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-assembly-plugin</artifactId>
@@ -103,7 +82,7 @@
         </dependency>
         <dependency>
             <groupId>ru.alekseiadamov.cloudstorage</groupId>
-            <artifactId>server</artifactId>
+            <artifactId>common</artifactId>
             <version>1.0-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>

@@ -1,5 +1,7 @@
 package ru.alekseiadamov.cloudstorage.client.util;
 
+import ru.alekseiadamov.cloudstorage.client.Client;
+
 import javax.swing.*;
 import java.awt.*;
 
@@ -9,7 +11,8 @@ public class FilesTable extends JTable {
         super(model);
         setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         setAutoCreateRowSorter(true);
-        setShowVerticalLines(false);
+        setShowVerticalLines(true);
+        setShowHorizontalLines(true);
         setIconColumnWidth(30);
         setIntercellSpacing(new Dimension(10, 0));
 
