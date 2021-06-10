@@ -9,6 +9,7 @@ import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
 import ru.alekseiadamov.cloudstorage.client.handlers.ClientInputHandler;
 import ru.alekseiadamov.cloudstorage.client.handlers.ClientOutputHandler;
+import ru.alekseiadamov.cloudstorage.server.util.Command;
 
 import java.io.File;
 import java.net.InetAddress;
@@ -62,21 +63,42 @@ public class Client {
 
     public void upload(File file, File destination) {
         // TODO: implement.
+        String message = String.format("%s %s %s", Command.UPLOAD, file.getPath(), destination.getPath());
+        sendMessage(message);
     }
 
     public void download(File file, File destination) {
         // TODO: implement.
+        String message = String.format("%s %s %s", Command.DOWNLOAD, file.getPath(), destination.getPath());
+        sendMessage(message);
     }
 
     public void copy(File src, File dest) {
         // TODO: implement.
+        String message = String.format("%s %s %s", Command.COPY, src.getPath(), dest.getPath());
+        sendMessage(message);
     }
 
     public void createDirectory(String directoryName) {
         // TODO: implement.
+        String message = String.format("%s %s", Command.MKDIR, directoryName);
+        sendMessage(message);
+    }
+
+    public void grantPermissions(String user, File file, String permissions) {
+        // TODO: implement.
+        String message = String.format("%s %s %s %s", Command.GRANT_PERMISSIONS, user, file.getPath(), permissions);
+        sendMessage(message);
+    }
+
+    public void delete(File file) {
+        // TODO: implement.
+        String message = String.format("%s %s", Command.DELETE, file);
+        sendMessage(message);
     }
 
     public void closeChannel() {
+        sendMessage(Command.DISCONNECT);
         channel.close();
     }
 }

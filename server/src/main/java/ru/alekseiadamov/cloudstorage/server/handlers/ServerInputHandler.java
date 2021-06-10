@@ -17,6 +17,7 @@ public class ServerInputHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
+        System.out.println(msg);
         ByteBuf buf = (ByteBuf) msg;
         System.out.println("buf: " + buf);
         StringBuilder sb = new StringBuilder();

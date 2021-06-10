@@ -101,5 +101,11 @@
             <artifactId>svgSalamander</artifactId>
             <version>1.1.2.4</version>
         </dependency>
+        <dependency>
+            <groupId>ru.alekseiadamov.cloudstorage</groupId>
+            <artifactId>server</artifactId>
+            <version>1.0-SNAPSHOT</version>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
 </project>

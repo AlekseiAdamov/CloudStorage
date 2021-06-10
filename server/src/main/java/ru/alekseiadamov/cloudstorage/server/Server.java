@@ -9,6 +9,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
+import ru.alekseiadamov.cloudstorage.server.handlers.MessageHandler;
 import ru.alekseiadamov.cloudstorage.server.handlers.ServerInputHandler;
 import ru.alekseiadamov.cloudstorage.server.handlers.ServerOutputHandler;
 
@@ -28,6 +29,7 @@ public class Server {
                             ch.pipeline()
                                     .addLast(new StringDecoder(),
                                             new StringEncoder(),
+                                            new MessageHandler(),
                                             new ServerInputHandler(),
                                             new ServerOutputHandler()
                                     );
