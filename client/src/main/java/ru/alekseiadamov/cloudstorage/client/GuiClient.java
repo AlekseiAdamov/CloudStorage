@@ -6,26 +6,30 @@ import com.formdev.flatlaf.extras.FlatSVGUtils;
 import ru.alekseiadamov.cloudstorage.client.util.FileTableModel;
 import ru.alekseiadamov.cloudstorage.client.util.FilesPanel;
 import ru.alekseiadamov.cloudstorage.client.util.FilesTable;
-import ru.alekseiadamov.cloudstorage.server.util.Command;
+import ru.alekseiadamov.cloudstorage.common.Command;
 
 import javax.swing.*;
+import javax.swing.event.TableModelEvent;
 import javax.swing.table.TableModel;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.Properties;
 
 public class GuiClient extends JFrame {
 
     private final static Path USER_PATH = Paths.get(System.getProperty("user.home"));
     private final static Path ROOT_PATH = Paths.get(USER_PATH.toString(), "server");
-    private final static String HOST = "localhost";
+    private final static String DEFAULT_HOST = "localhost";
+    private final static int DEFAULT_PORT = 5678;
     private final static String STATUS_TEMPLATE = "%s files of size %s bytes";
-    private final static int PORT = 5678;
     private final GraphicsEnvironment env = GraphicsEnvironment.getLocalGraphicsEnvironment();
 
     private JSplitPane files;
@@ -40,9 +44,19 @@ public class GuiClient extends JFrame {
     private JPasswordField passwordField;
     private String currentUser;
     private final HashMap<File, String> filePermissions = new HashMap<>();
+    private final Properties properties = new Properties();
 
     public GuiClient() {
+        loadProperties();
         prepareGUI();
+    }
+
+    private void loadProperties() {
+        try (InputStream in = GuiClient.class.getClassLoader().getResourceAsStream("config.properties")) {
+            properties.load(in);
+        } catch (IOException e) {
+            // TODO: add logging.
+        }
     }
 
     /**
@@ -79,7 +93,7 @@ public class GuiClient extends JFrame {
      * Sets application icon.
      */
     private void setAppIcon() {
-        setIconImage(FlatSVGUtils.svg2image("/app.svg", 16, 16));
+        setIconImage(FlatSVGUtils.svg2image("/" + properties.getProperty("appIcon"), 16, 16));
     }
 
     /**
@@ -105,11 +119,11 @@ public class GuiClient extends JFrame {
     private JPanel getConnectionPanel() {
         serverAddressField = new JTextField();
         serverAddressField.setToolTipText("Server address");
-        serverAddressField.setText(HOST);
+        serverAddressField.setText(getHost());
 
         serverPortField = new JTextField();
         serverPortField.setToolTipText("Server port");
-        serverPortField.setText(String.valueOf(PORT));
+        serverPortField.setText(String.valueOf(getPort()));
 
         loginField = new JTextField();
         loginField.setToolTipText("User name");
@@ -119,7 +133,7 @@ public class GuiClient extends JFrame {
 
         JButton connectButton = new JButton();
         connectButton.setToolTipText("Connect to the selected server with the specified credentials");
-        connectButton.setIcon(new FlatSVGIcon("connect.svg", 16, 16));
+        connectButton.setIcon(new FlatSVGIcon(properties.getProperty("connectIcon"), 16, 16));
         connectButton.setBackground(new Color(190, 236, 250));
         connectButton.addActionListener(e -> connect());
 
@@ -150,7 +164,7 @@ public class GuiClient extends JFrame {
         adminPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton addUserButton = new JButton();
         addUserButton.setToolTipText("Add new user");
-        addUserButton.setIcon(new FlatSVGIcon("user.svg", 16, 16));
+        addUserButton.setIcon(new FlatSVGIcon(properties.getProperty("userIcon"), 16, 16));
         addUserButton.addActionListener(e -> addUser());
         adminPanel.add(addUserButton);
 
@@ -186,6 +200,7 @@ public class GuiClient extends JFrame {
             try {
                 Thread.sleep(500);
             } catch (InterruptedException e) {
+                // TODO: add logging.
                 e.printStackTrace();
             }
         }
@@ -199,8 +214,12 @@ public class GuiClient extends JFrame {
         currentUser = loginField.getText();
         adminPanel.setVisible(userIsAdmin());
         // TODO: set to the path given by the server.
-        serverFilesPanel.setDir(ROOT_PATH.toFile());
-        serverFilesPanel.setPath(ROOT_PATH.toString());
+        File serverDir = client.getServerDir();
+        if (serverDir == null) {
+            serverDir = ROOT_PATH.toFile();
+        }
+        serverFilesPanel.setDir(serverDir);
+        serverFilesPanel.setPath(serverDir.getPath());
         serverFilesPanel.updateStatus();
     }
 
@@ -216,7 +235,13 @@ public class GuiClient extends JFrame {
      * @return Server address.
      */
     private String getHost() {
-        String host = HOST;
+        String host = DEFAULT_HOST;
+        if (!properties.isEmpty()) {
+            String hostProperty = properties.getProperty("host");
+            if (hostProperty != null) {
+                host = hostProperty;
+            }
+        }
         final String serverAddressValue = serverAddressField.getText();
         if (!(serverAddressValue.isEmpty() || serverAddressValue.equals(host))) {
             host = serverAddressValue;
@@ -228,7 +253,13 @@ public class GuiClient extends JFrame {
      * @return Server port.
      */
     private int getPort() {
-        String port = String.valueOf(PORT);
+        String port = String.valueOf(DEFAULT_PORT);
+        if (!properties.isEmpty()) {
+            String portProperty = properties.getProperty("port");
+            if (portProperty != null) {
+                port = portProperty;
+            }
+        }
         final String portValue = serverPortField.getText();
         if (!(portValue.isEmpty() || portValue.equals(port))) {
             port = portValue;
@@ -288,7 +319,7 @@ public class GuiClient extends JFrame {
 
         JButton uploadButton = new JButton();
         uploadButton.setToolTipText("Upload the selected file to the current server directory");
-        uploadButton.setIcon(new FlatSVGIcon("upload.svg", 16, 16));
+        uploadButton.setIcon(new FlatSVGIcon(properties.getProperty("uploadIcon"), 16, 16));
         uploadButton.addActionListener(e -> upload());
         buttons.add(uploadButton);
 
@@ -297,7 +328,7 @@ public class GuiClient extends JFrame {
 
         JLabel status = new JLabel(STATUS_TEMPLATE);
 
-        return new FilesPanel("GuiClient files", buttons, files, status);
+        return new FilesPanel("Client files", buttons, files, status);
     }
 
     /**
@@ -339,36 +370,35 @@ public class GuiClient extends JFrame {
 
         JButton downloadButton = new JButton();
         downloadButton.setToolTipText("Download the selected file to the current client directory");
-        downloadButton.setIcon(new FlatSVGIcon("download.svg", 16, 16));
+        downloadButton.setIcon(new FlatSVGIcon(properties.getProperty("downloadIcon"), 16, 16));
         downloadButton.addActionListener(e -> download());
         buttons.add(downloadButton);
 
         JButton copyButton = new JButton();
         copyButton.setToolTipText("Create a copy of the selected file or directory in the current server directory");
-        copyButton.setIcon(new FlatSVGIcon("copy.svg", 16, 16));
+        copyButton.setIcon(new FlatSVGIcon(properties.getProperty("copyIcon"), 16, 16));
         copyButton.addActionListener(e -> copy());
         buttons.add(copyButton);
 
         JButton createDirectoryButton = new JButton();
         createDirectoryButton.setToolTipText("Create new directory in the current server directory");
-        createDirectoryButton.setIcon(new FlatSVGIcon("folder.svg", 16, 16));
+        createDirectoryButton.setIcon(new FlatSVGIcon(properties.getProperty("newDirIcon"), 16, 16));
         createDirectoryButton.addActionListener(e -> createDirectory());
         buttons.add(createDirectoryButton);
 
         JButton deleteButton = new JButton();
         deleteButton.setToolTipText("Delete the selected file or directory in the current server directory");
-        deleteButton.setIcon(new FlatSVGIcon("delete.svg", 16, 16));
+        deleteButton.setIcon(new FlatSVGIcon(properties.getProperty("deleteIcon"), 16, 16));
         deleteButton.addActionListener(e -> delete());
         buttons.add(deleteButton);
 
         JButton grantPermissionsButton = new JButton();
         grantPermissionsButton.setToolTipText("Grant permissions for the selected file or directory to other users");
-        grantPermissionsButton.setIcon(new FlatSVGIcon("share.svg", 16, 16));
+        grantPermissionsButton.setIcon(new FlatSVGIcon(properties.getProperty("shareIcon"), 16, 16));
         grantPermissionsButton.addActionListener(e -> grantPermissions());
         buttons.add(grantPermissionsButton);
 
-        // TODO: do not show until connection is established.
-//        FileTableModel filesModel = new FileTableModel(ROOT_PATH.toFile());
+        // No files shown until connection is established.
         FileTableModel filesModel = new FileTableModel(null);
         serverFiles = new FilesTable(filesModel);
 
@@ -485,6 +515,13 @@ public class GuiClient extends JFrame {
      * @return The result of checking whether it is possible to send commands to the server.
      */
     private boolean maySendCommand() {
+        if (client == null) {
+            JOptionPane.showMessageDialog(this,
+                    "Connection with the server is not established.",
+                    "Connection not established",
+                    JOptionPane.WARNING_MESSAGE);
+            return false;
+        }
         if (client.channelIsReady()) {
             return true;
         }
