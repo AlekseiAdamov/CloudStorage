@@ -7,50 +7,122 @@ import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
+import java.io.*;
 import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Properties;
 
 public class FilesPanel extends JPanel {
+    /**
+     * The template for the status label's text.
+     */
     private final static String STATUS_TEMPLATE = "%s files of size %s bytes";
 
+    /**
+     * The table containing the current directory files view.
+     */
     private final FilesTable files;
+
+    /**
+     * The label to show total number and size of files in the table's model current directory.
+     */
     private final JLabel status;
+
+    /**
+     * Properties containing the panel's icons' names.
+     */
     private final Properties properties;
+
+    /**
+     * The text field containing the current directory path.
+     */
     private JTextField path;
+
+    /**
+     * The text field for the search query.
+     */
     private JTextField searchField;
 
-    public FilesPanel(String title, JPanel buttons, FilesTable files, JLabel status) {
-        this.files = files;
-        this.status = status;
+    /**
+     * Class constructor.
+     *
+     * @param title The title to be shown in the titled border of the panel.
+     * @param buttonsPanel The control buttons panel of the files table of the panel.
+     * @param filesTable The files table of the panel.
+     * @param statusLabel The status label to show total number and size
+     *                    of the files in the table's model current directory .
+     */
+    public FilesPanel(String title, JPanel buttonsPanel, FilesTable filesTable, JLabel statusLabel) {
+        this.files = filesTable;
+        this.status = statusLabel;
         this.properties = new Properties();
 
         setLayout(new BorderLayout());
         setBorder(BorderFactory.createTitledBorder(title));
 
-        final JPanel buttonsAndPath = getButtonsAndPathPanel(buttons, files);
+        final JPanel buttonsAndPathPanel = getButtonsAndPathPanel(buttonsPanel, filesTable);
         final JScrollPane filesPane = new JScrollPane(this.files);
 
-        add(buttonsAndPath, BorderLayout.NORTH);
+        add(buttonsAndPathPanel, BorderLayout.NORTH);
         add(filesPane, BorderLayout.CENTER);
-        add(status, BorderLayout.SOUTH);
+        add(statusLabel, BorderLayout.SOUTH);
     }
 
     /**
-     * @param buttons JPanel with the control buttons.
-     * @param files File table.
+     * @param buttonsPanel Control buttons panel for the files table.
+     * @param filesTable Files table.
      * @return Top panel for the file table: buttons, path field and search field.
      */
-    private JPanel getButtonsAndPathPanel(JPanel buttons, FilesTable files) {
+    private JPanel getButtonsAndPathPanel(JPanel buttonsPanel, FilesTable filesTable) {
+        final JPanel pathAndSearchPanel = getPathAndSearchPanel(filesTable);
+
         final JPanel buttonsAndPath = new JPanel();
         buttonsAndPath.setLayout(new BoxLayout(buttonsAndPath, BoxLayout.PAGE_AXIS));
-        buttonsAndPath.add(buttons);
+        buttonsAndPath.add(buttonsPanel);
+        buttonsAndPath.add(pathAndSearchPanel);
 
+        return buttonsAndPath;
+    }
+
+    /**
+     * @param filesTable Files table.
+     * @return Path and search panel for the files table.
+     */
+    private JPanel getPathAndSearchPanel(FilesTable filesTable) {
+        final JButton upButton = getUpButton(filesTable);
+        path = getPathField();
+        final JPanel searchPanel = getSearchPanel();
+
+        final JPanel pathPanel = new JPanel(new BorderLayout());
+        pathPanel.add(upButton, BorderLayout.WEST);
+        pathPanel.add(path, BorderLayout.CENTER);
+        pathPanel.add(searchPanel, BorderLayout.EAST);
+
+        return pathPanel;
+    }
+
+    /**
+     * @return Path field for the files table.
+     */
+    private JTextField getPathField() {
+        String pathString = "";
+        final File dir = getDir();
+        if (dir != null) {
+            pathString = dir.getPath();
+        }
+        final JTextField pathField = new JTextField(pathString);
+        pathField.setToolTipText("Current directory path");
+        pathField.addActionListener(e -> changeDirectory());
+
+        return pathField;
+    }
+
+    /**
+     * @param filesTable Files table.
+     * @return Button to go to the parent directory.
+     */
+    private JButton getUpButton(FilesTable filesTable) {
         final JButton upButton = new JButton();
         try (InputStream in = GuiClient.class.getClassLoader().getResourceAsStream("config.properties")) {
             properties.load(in);
@@ -59,89 +131,97 @@ public class FilesPanel extends JPanel {
         }
         upButton.setIcon(new FlatSVGIcon(properties.getProperty("upIcon"), 16, 16));
         upButton.setToolTipText("Go to parent directory");
-        upButton.addActionListener(e -> goToParentDirectory(files));
+        upButton.addActionListener(e -> goToParentDirectory(filesTable));
 
-        String pathString = "";
-        if (mayUseDir()) {
-            pathString = ((FileTableModel) this.files.getModel()).getDir().getPath();
-        }
-        path = new JTextField(pathString);
-        path.setToolTipText("Current directory path");
-        path.addActionListener(e -> changeDirectory());
-
-        JPanel searchPanel = getSearchPanel();
-
-        final JPanel pathPanel = new JPanel(new BorderLayout());
-        pathPanel.add(upButton, BorderLayout.WEST);
-        pathPanel.add(path, BorderLayout.CENTER);
-        pathPanel.add(searchPanel, BorderLayout.EAST);
-
-        buttonsAndPath.add(pathPanel);
-        return buttonsAndPath;
+        return upButton;
     }
 
     /**
      * @return Search panel.
      */
     private JPanel getSearchPanel() {
+        final JLabel searchLabel = getSearchLabel();
+        searchField = getSearchField();
+        final JButton clearSearchQueryButton = getClearSearchQueryButton();
+
         final JPanel searchPanel = new JPanel(new BorderLayout());
         searchPanel.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 0));
+        searchPanel.add(searchLabel, BorderLayout.WEST);
+        searchPanel.add(searchField, BorderLayout.CENTER);
+        searchPanel.add(clearSearchQueryButton, BorderLayout.EAST);
+
+        return searchPanel;
+    }
+
+    /**
+     * @return Search panel label.
+     */
+    private JLabel getSearchLabel() {
         final JLabel searchLabel = new JLabel();
         searchLabel.setIcon(new FlatSVGIcon(properties.getProperty("searchIcon"), 16, 16));
+        return searchLabel;
+    }
 
-        searchField = new JTextField();
-        searchField.setToolTipText("Filter file names by entering search query here");
-        searchField.getDocument().addDocumentListener(new DocumentListener() {
+    /**
+     * @return Search panel query input text field.
+     */
+    private JTextField getSearchField() {
+        final JTextField field = new JTextField();
+        field.setToolTipText("Filter file names by entering search query here");
+        field.getDocument().addDocumentListener(new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent e) {
                 filterFiles();
+                updateStatus();
             }
 
             @Override
             public void removeUpdate(DocumentEvent e) {
                 filterFiles();
+                updateStatus();
             }
 
             @Override
             public void changedUpdate(DocumentEvent e) {
                 filterFiles();
+                updateStatus();
             }
         });
+        return field;
+    }
 
-        JButton endSearchButton = new JButton();
+    public void appendSearchQuery(char c) {
+        String searchQuery = searchField.getText() + c;
+        searchField.setText(searchQuery);
+    }
+
+    /**
+     * @return Clear search query button.
+     */
+    private JButton getClearSearchQueryButton() {
+        final JButton endSearchButton = new JButton();
         endSearchButton.setToolTipText("Clear search filter and show all files");
         endSearchButton.setIcon(new FlatSVGIcon(properties.getProperty("endSearchIcon"), 16, 16));
-        endSearchButton.addActionListener(e -> {
-            if (searchField.getText().isEmpty()) {
-                return;
-            }
-            searchField.setText("");
-            setDir(getDir());
-        });
+        endSearchButton.addActionListener(e -> clearSearchQuery());
+        return endSearchButton;
+    }
 
-        searchPanel.add(searchLabel, BorderLayout.WEST);
-        searchPanel.add(searchField, BorderLayout.CENTER);
-        searchPanel.add(endSearchButton, BorderLayout.EAST);
-        return searchPanel;
+    /**
+     * Clears the search query.
+     */
+    private void clearSearchQuery() {
+        if (searchField.getText().isEmpty()) {
+            return;
+        }
+        searchField.setText("");
+        setDir(getDir());
     }
 
     /**
      * Filters files in the current directory according to the entered query.
      */
     private void filterFiles() {
-        File currentDir = getDir();
-        if (currentDir == null) {
-            return;
-        }
-        File[] fileArray = currentDir.listFiles();
-        if (fileArray == null) {
-            return;
-        }
-        setFiles(Arrays.stream(fileArray)
-                .filter(e -> e.getName()
-                        .toLowerCase(Locale.getDefault())
-                        .contains(searchField.getText().toLowerCase(Locale.getDefault())))
-                .toArray(File[]::new));
+        setFiles(getFiles());
     }
 
     /**
@@ -149,8 +229,22 @@ public class FilesPanel extends JPanel {
      *
      * @param fileArray Array of the files to show in the current directory.
      */
-    private void setFiles(File[] fileArray) {
+    public void setFiles(File[] fileArray) {
         ((FileTableModel) files.getModel()).setFiles(fileArray);
+    }
+
+    /**
+     * @return Array of the files to show in the current directory based on the applied filter (if any).
+     */
+    public File[] getFiles() {
+        if (mayUseDir()) {
+            return getDir().listFiles((dir, name) -> name
+                    .toLowerCase(Locale.getDefault())
+                    .contains(searchField
+                            .getText()
+                            .toLowerCase(Locale.getDefault())));
+        }
+        return new File[0];
     }
 
     /**
@@ -180,20 +274,34 @@ public class FilesPanel extends JPanel {
     /**
      * Changes current directory to its parent.
      *
-     * @param files Table representing current directory files.
+     * @param filesTable Table representing current directory files.
      */
-    private void goToParentDirectory(FilesTable files) {
-        FileTableModel model = (FileTableModel) files.getModel();
+    private void goToParentDirectory(FilesTable filesTable) {
+        final FileTableModel model = (FileTableModel) filesTable.getModel();
         final String parentName = model.getDir().getParent();
         if (parentName != null) {
             final File parent = new File(parentName);
             if (!model.getDir().equals(parent)) {
                 model.setDir(parent);
-                ((FilesPanel) files.getParent().getParent().getParent()).setPath(parent.getPath());
+                updateFiles(parent.getPath());
             }
         }
     }
 
+    /**
+     * Updates the file table based on the applied filter (if any).
+     *
+     * @param path Path to the current directory.
+     */
+    public void updateFiles(String path) {
+        setPath(path);
+        filterFiles();
+        updateStatus();
+    }
+
+    /**
+     * @return A flag whether the current directory can be accessed.
+     */
     private boolean mayUseDir() {
         return this.files != null
                 && this.files.getModel() != null
@@ -204,49 +312,29 @@ public class FilesPanel extends JPanel {
      * Sets the string representation of the current directory status.
      */
     public void updateStatus() {
-        final long numOfFiles = getNumOfFiles(getDir());
-        final long numOfBytes = getNumOfBytes(getDir());
+        final long numOfFiles = getNumOfFiles();
+        final long numOfBytes = getNumOfBytes();
 
         DecimalFormat decimalFormat = new DecimalFormat("#");
         decimalFormat.setGroupingUsed(true);
         decimalFormat.setGroupingSize(3);
 
-        String statusString = String.format(STATUS_TEMPLATE, decimalFormat.format(numOfFiles), decimalFormat.format(numOfBytes));
+        final String statusString = String.format(STATUS_TEMPLATE, decimalFormat.format(numOfFiles), decimalFormat.format(numOfBytes));
         status.setText(statusString);
     }
 
     /**
-     * @param directory Current directory.
-     * @return Total number of files in a directory.
+     * @return Total number of filtered (if any filter is applied) files in a current directory.
      */
-    private long getNumOfFiles(File directory) {
-        if (directory == null) {
-            return 0;
-        }
-        long numOfFiles = 0;
-        try {
-            numOfFiles = Files.list(directory.toPath()).count();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return numOfFiles;
+    private long getNumOfFiles() {
+        return Arrays.stream(getFiles()).mapToLong(e -> e.exists() ? 1 : 0).sum();
     }
 
     /**
-     * @param directory Current directory.
-     * @return Total size (in bytes) of files in a directory.
+     * @return Total size (in bytes) of filtered (if any filter is applied) files in a current directory.
      */
-    private long getNumOfBytes(File directory) {
-        if (directory == null) {
-            return 0;
-        }
-        long numOfBytes = 0;
-        try {
-            numOfBytes = Files.list(directory.toPath()).mapToLong(e -> e.toFile().length()).sum();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return numOfBytes;
+    private long getNumOfBytes() {
+        return Arrays.stream(getFiles()).mapToLong(e -> e.exists() ? e.length() : 0).sum();
     }
 
     /**

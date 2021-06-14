@@ -10,6 +10,7 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
 import ru.alekseiadamov.cloudstorage.server.handlers.MessageHandler;
+import ru.alekseiadamov.cloudstorage.server.handlers.ServerInputHandler;
 import ru.alekseiadamov.cloudstorage.server.handlers.ServerOutputHandler;
 
 import java.io.IOException;
@@ -38,7 +39,7 @@ public class Server {
                                     .addLast(new StringDecoder(),
                                             new StringEncoder(),
                                             new MessageHandler(),
-//                                            new ServerInputHandler(),
+                                            new ServerInputHandler(),
                                             new ServerOutputHandler()
                                     );
                         }
