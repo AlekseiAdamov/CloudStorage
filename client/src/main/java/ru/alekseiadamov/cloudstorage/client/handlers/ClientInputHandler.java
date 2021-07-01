@@ -60,10 +60,10 @@ public class ClientInputHandler extends ChannelInboundHandlerAdapter {
         } else if (ServerResponse.DELETE_FAIL.equals(response)) {
             String file = parameters[1];
             System.out.printf("Delete file %s failed.\n", file);
-        } else if (ServerResponse.READY_UPLOAD.equals(response)) {
+        } else if (ServerResponse.UPLOAD_READY.equals(response)) {
             String filePath = parameters[1];
             receiveFile(filePath, channelHandlerContext);
-        } else if (ServerResponse.READY_DOWNLOAD.equals(response)) {
+        } else if (ServerResponse.DOWNLOAD_READY.equals(response)) {
             String filePath = parameters[2];
             sendFile(filePath, channelHandlerContext);
         } else {
@@ -88,7 +88,13 @@ public class ClientInputHandler extends ChannelInboundHandlerAdapter {
                 e.printStackTrace();
             }
         }
-        channelHandlerContext.writeAndFlush(file);
+        try {
+            byte[] bytes = Files.readAllBytes(file.toPath());
+            channelHandlerContext.writeAndFlush(bytes);
+        } catch (IOException e) {
+            // TODO: add logging.
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -106,7 +112,8 @@ public class ClientInputHandler extends ChannelInboundHandlerAdapter {
         }
         try {
             ByteBuf buf = channelHandlerContext.alloc().directBuffer();
-            buf.writeBytes(Files.readAllBytes(file.toPath()));
+            byte[] bytes = Files.readAllBytes(file.toPath());
+            buf.writeBytes(bytes);
             channelHandlerContext.writeAndFlush(buf);
         } catch (IOException e) {
             e.printStackTrace();

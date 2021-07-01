@@ -46,11 +46,17 @@ public class GuiClient extends JFrame {
     private final HashMap<File, String> filePermissions = new HashMap<>();
     private final Properties properties = new Properties();
 
+    /**
+     * Class constructor.
+     */
     public GuiClient() {
         loadProperties();
         prepareGUI();
     }
 
+    /**
+     * Loads properties from the properties file.
+     */
     private void loadProperties() {
         try (InputStream in = GuiClient.class.getClassLoader().getResourceAsStream("config.properties")) {
             properties.load(in);
@@ -137,6 +143,12 @@ public class GuiClient extends JFrame {
         connectButton.setBackground(new Color(190, 236, 250));
         connectButton.addActionListener(e -> connect());
 
+        JButton disconnectButton = new JButton();
+        disconnectButton.setToolTipText("Disconnect from the server");
+        disconnectButton.setIcon(new FlatSVGIcon(properties.getProperty("disconnectIcon"), 16, 16));
+        disconnectButton.setBackground(new Color(247, 156, 179));
+        disconnectButton.addActionListener(e -> disconnect());
+
         JLabel serverSplitterLabel = new JLabel(":");
         JLabel userSplitterLabel = new JLabel(":");
         JLabel atLabel = new JLabel("@");
@@ -150,6 +162,7 @@ public class GuiClient extends JFrame {
         connectionPanel.add(serverSplitterLabel);
         connectionPanel.add(serverPortField);
         connectionPanel.add(connectButton);
+        connectionPanel.add(disconnectButton);
 
         return connectionPanel;
     }
@@ -221,6 +234,16 @@ public class GuiClient extends JFrame {
         serverFilesPanel.setDir(serverDir);
         serverFilesPanel.setPath(serverDir.getPath());
         serverFilesPanel.updateStatus();
+    }
+
+    /**
+     * Disconnects from the server.
+     */
+    private void disconnect() {
+        serverFilesPanel.setDir(null);
+        serverFilesPanel.setPath("");
+        serverFilesPanel.updateStatus();
+        closeChannel();
     }
 
     /**
@@ -345,8 +368,6 @@ public class GuiClient extends JFrame {
         clientFilesPanel.updateStatus();
     }
 
-
-
     /**
      * Uploads the selected file from the client to the current directory on the server.
      */
@@ -399,12 +420,19 @@ public class GuiClient extends JFrame {
         buttons.add(grantPermissionsButton);
 
         // No files shown until connection is established.
-        FileTableModel filesModel = new FileTableModel(null);
-        serverFiles = new FilesTable(filesModel);
+        setEmptyServerFiles();
 
         JLabel status = new JLabel(STATUS_TEMPLATE);
 
         return new FilesPanel("Server files", buttons, serverFiles, status);
+    }
+
+    /**
+     * Sets empty file table model for the server files table.
+     */
+    private void setEmptyServerFiles() {
+        FileTableModel filesModel = new FileTableModel(null);
+        serverFiles = new FilesTable(filesModel);
     }
 
     /**

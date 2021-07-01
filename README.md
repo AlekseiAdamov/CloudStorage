@@ -22,9 +22,11 @@
 
 <h3>Used libraries and frameworks</h3>
 <ul>
+    <li>Java 8</li>
     <li>Client and server backend: <a href="https://netty.io/">Netty</a> <a href="https://mvnrepository.com/artifact/io.netty/netty-all/4.1.65.Final">4.1.65.Final</a></li>
     <li>Client GUI:</li>
     <ul>
+        <li>Swing</li>
         <li><a href="https://www.formdev.com/flatlaf/">FlatLaf</a> <a href="https://mvnrepository.com/artifact/com.formdev/flatlaf/1.1.2">1.1.2</a></li>
         <li><a href="https://github.com/JFormDesigner/FlatLaf/tree/main/flatlaf-extras/">FlatLaf Extras</a> <a href="https://mvnrepository.com/artifact/com.formdev/flatlaf-extras/1.2">1.2</a></li>
         <li>SVG Salamander <a href="https://mvnrepository.com/artifact/com.formdev/svgSalamander/1.1.2.4">1.1.2.4</a></li>

@@ -1,7 +1,5 @@
 package ru.alekseiadamov.cloudstorage.client.util;
 
-import ru.alekseiadamov.cloudstorage.client.Client;
-
 import javax.swing.*;
 import java.awt.*;
 
@@ -20,6 +18,11 @@ public class FilesTable extends JTable {
         addMouseListener(new TableMouseListener(this, model));
     }
 
+    /**
+     * Sets the icon column width.
+     *
+     * @param width Icon column width.
+     */
     private void setIconColumnWidth(int width) {
         this.getColumnModel().getColumn(0).setMaxWidth(width);
     }

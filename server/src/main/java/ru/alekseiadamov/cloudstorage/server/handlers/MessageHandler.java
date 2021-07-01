@@ -10,7 +10,9 @@ import ru.alekseiadamov.cloudstorage.common.ServerResponse;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 
 public class MessageHandler extends SimpleChannelInboundHandler<String> {
@@ -65,7 +67,7 @@ public class MessageHandler extends SimpleChannelInboundHandler<String> {
                 disconnect(ctx);
                 break;
             default:
-                System.out.println(msg);
+                ctx.writeAndFlush(msg);
 
         }
     }
@@ -125,10 +127,40 @@ public class MessageHandler extends SimpleChannelInboundHandler<String> {
         }
         String src = parameters[1];
         String dest = parameters[2];
-        // TODO: implement.
+
         System.out.printf("Uploading '%s' to '%s'...\n", src, dest);
-        String message = String.format("%s %s %s", ServerResponse.READY_UPLOAD, src, dest);
-        ctx.writeAndFlush(message);
+
+        String messageBefore = String.format("%s %s %s", ServerResponse.UPLOAD_READY, src, dest);
+        ctx.writeAndFlush(messageBefore);
+
+        ByteBuf buffer = ctx.alloc().directBuffer();
+        byte[] bytes = new byte[buffer.readableBytes()];
+        buffer.writeBytes(bytes);
+
+        Path destPath = Paths.get(dest, new File(src).getName());
+        String messageAfter = String.format("%s %s -> %s: %s",
+                ServerResponse.UPLOAD_FAIL,
+                src,
+                destPath.toString(),
+                "No bytes to write.");
+        if (bytes.length == 0) {
+            ctx.writeAndFlush(messageAfter);
+            return;
+        }
+
+        try {
+            Files.write(destPath, bytes, StandardOpenOption.CREATE);
+            messageAfter = String.format("%s %s -> %s", ServerResponse.UPLOAD_OK, src, destPath.toString());
+        } catch (IOException e) {
+            e.printStackTrace();
+            messageAfter = String.format("%s %s -> %s: %s",
+                    ServerResponse.UPLOAD_FAIL,
+                    src,
+                    destPath.toString(),
+                    "Unable to write bytes to the file.");
+        } finally {
+            ctx.writeAndFlush(messageAfter);
+        }
     }
 
     /**
@@ -145,7 +177,7 @@ public class MessageHandler extends SimpleChannelInboundHandler<String> {
         String dest = parameters[2];
         // TODO: implement.
         System.out.printf("Downloading '%s' to '%s'...\n", src, dest);
-        String message = String.format("%s %s %s", ServerResponse.READY_DOWNLOAD, src, dest);
+        String message = String.format("%s %s %s", ServerResponse.DOWNLOAD_READY, src, dest);
         ctx.writeAndFlush(message);
         try {
             File file = new File(src);
